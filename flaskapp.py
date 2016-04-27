@@ -1,6 +1,7 @@
 import pickle
 from klein import Klein
 import json
+from twisted.internet import defer
 #from flask import Flask, jsonify, request, Response, json
 #app = Flask(__name__)
 app = Klein()
@@ -22,6 +23,7 @@ class Order(object):
 			'payment': self.payment
 		}
 
+deferreds = {}
 class Orders(object):
 	def __init__(self):
 		try:
@@ -64,6 +66,8 @@ class Orders(object):
 			order.payment = otp
 			f = open('/tmp/orders.pickle', 'wb')
 			pickle.dump(self, f)
+			if order.order_id in deferreds:
+				deferreds[order.order_id].callback(order)
 			return True
 		return False
 
@@ -75,6 +79,18 @@ def jsonify(d):
 
 def get_json(r):
 	return json.loads(r.content.read())
+
+@app.route('/wait_for_payment/<order_id>')
+def wait_for_payment(request, order_id):
+	def get_order(order):
+		return jsonify(order.json_dict())
+	order = all_orders.get_order(long(order_id))
+	if not order.payment:
+		deferreds[order.order_id] = defer.Deferred()
+		deferreds[order.order_id].addCallback(get_order)
+		return deferreds[order.order_id]
+	else:
+		return get_order(order)
 
 @app.route('/order', methods = ['POST'])
 def create_order(request):
