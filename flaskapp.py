@@ -75,6 +75,17 @@ def post_payment():
 	order.payment = payment_request_json['otp']
 	return jsonify(order.json_dict())
 
+@app.route('/order', methods = [ 'PUT' ])
+def update_order():
+	payment_request_json = request.get_json(force=True)
+	order = all_orders.get_order(long(payment_request_json['order_id']))
+	if not order.payment:
+		order.mid = payment_request_json['mid']
+		order.tid = payment_request_json['tid']
+		order.amount = payment_request_json['amount']
+
+	return jsonify(order.json_dict())
+
 if __name__ == '__main__':
 	app.debug = True
 	app.run()
