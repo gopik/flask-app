@@ -1,3 +1,4 @@
+import pickle
 from flask import Flask, jsonify, request, Response, json
 app = Flask(__name__)
 
@@ -20,8 +21,15 @@ class Order(object):
 
 class Orders(object):
 	def __init__(self):
-		self.order_id = 0x1234567812345678
-		self.orders = {}
+		try:
+			f = open('/tmp/orders.pickle', 'rb')
+			orders = pickle.load(f)
+			self.order_id = orders.order_id
+			self.orders = orders.orders
+			f.close()
+		except:
+			self.order_id = 0x1234567812345678
+			self.orders = {}
 
 	def get_order(self, order_id):
 		if order_id in self.orders:
@@ -32,6 +40,8 @@ class Orders(object):
 		order = Order(self.order_id)
 		self.orders[self.order_id] = order
 		self.order_id = self.order_id + 1
+		f = open('/tmp/orders.pickle', 'wb')
+		pickle.dump(self, f)
 		return order
 
 	def add_order_details(self, order_id, mid, tid, amount):
@@ -40,13 +50,17 @@ class Orders(object):
 			order.mid = mid
 			order.tid = tid
 			order.amount = amount
+			f = open('/tmp/orders.pickle', 'wb')
+			pickle.dump(self, f)
 			return True
 		return False
 
 	def add_payment(self, order_id, otp):
 		order = self.orders[order_id]
-		if order:
+		if order and not order.payment:
 			order.payment = otp
+			f = open('/tmp/orders.pickle', 'wb')
+			pickle.dump(self, f)
 			return True
 		return False
 
@@ -71,19 +85,20 @@ def get_order(order_id):
 @app.route('/payment', methods = [ 'POST' ])
 def post_payment():
 	payment_request_json = request.get_json(force=True)
+	all_orders.add_payment(
+			long(payment_request_json['order_id']),
+				payment_request_json['otp'])
 	order = all_orders.get_order(long(payment_request_json['order_id']))
-	order.payment = payment_request_json['otp']
 	return jsonify(order.json_dict())
 
 @app.route('/order', methods = [ 'PUT' ])
 def update_order():
 	payment_request_json = request.get_json(force=True)
+	all_orders.add_order_details(long(payment_request_json['order_id']),
+		payment_request_json['mid'],
+		payment_request_json['tid'],
+		payment_request_json['amount'])
 	order = all_orders.get_order(long(payment_request_json['order_id']))
-	if not order.payment:
-		order.mid = payment_request_json['mid']
-		order.tid = payment_request_json['tid']
-		order.amount = payment_request_json['amount']
-
 	return jsonify(order.json_dict())
 
 if __name__ == '__main__':
