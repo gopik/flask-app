@@ -15,5 +15,13 @@ def get_order(order_id):
 			'order_id': order_id
 		})
 
+@app.route('/payment', methods = [ 'POST' ])
+def post_payment():
+	payment_request_json = request.get_json(True)
+	return jsonify({
+		'order_id': '1234'
+		})
+
+
 if __name__ == '__main__':
 	app.run()
