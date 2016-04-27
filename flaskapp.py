@@ -1,6 +1,9 @@
 import pickle
-from flask import Flask, jsonify, request, Response, json
-app = Flask(__name__)
+from klein import Klein
+import json
+#from flask import Flask, jsonify, request, Response, json
+#app = Flask(__name__)
+app = Klein()
 
 class Order(object):
 	def __init__(self, order_id):
@@ -67,13 +70,19 @@ class Orders(object):
 
 all_orders = Orders()
 
+def jsonify(d):
+	return json.dumps(d)
+
+def get_json(r):
+	return json.loads(r.content.read())
+
 @app.route('/order', methods = ['POST'])
-def create_order():
+def create_order(request):
 	order = all_orders.create_order()
 	return jsonify(order.json_dict())
 
 @app.route('/order/<order_id>')
-def get_order(order_id):
+def get_order(request, order_id):
 	order = all_orders.get_order(long(order_id))
 	if order:
 		return jsonify(order.json_dict())
@@ -83,8 +92,9 @@ def get_order(order_id):
 		})
 
 @app.route('/payment', methods = [ 'POST' ])
-def post_payment():
-	payment_request_json = request.get_json(force=True)
+def post_payment(request):
+	payment_request_json = get_json(request) #.get_json(force=True)
+
 	all_orders.add_payment(
 			long(payment_request_json['order_id']),
 				payment_request_json['otp'])
@@ -92,8 +102,8 @@ def post_payment():
 	return jsonify(order.json_dict())
 
 @app.route('/order', methods = [ 'PUT' ])
-def update_order():
-	payment_request_json = request.get_json(force=True)
+def update_order(request):
+	payment_request_json = get_json(request) #request.get_json(force=True)
 	all_orders.add_order_details(long(payment_request_json['order_id']),
 		payment_request_json['mid'],
 		payment_request_json['tid'],
@@ -103,4 +113,4 @@ def update_order():
 
 if __name__ == '__main__':
 	app.debug = True
-	app.run()
+	app.run('localhost', 8080)
